@@ -22,6 +22,7 @@ A brief description of what this project does and who it's for
 - GetSysInfo (Get system info like cpu, ip, mac ect)
 - getwifipass (Get all wifi ssid's and password the target has ever been conneced to)
 - whoami (See as what user the console is running)
+- screen (start / stop)
 
 
 ## Environment Variables
