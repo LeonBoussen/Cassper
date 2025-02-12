@@ -248,14 +248,38 @@ async def on_ready():
     print(f'✅ Bot found guild: {guild.name} ({guild.id})')
 
     # Find or create a text channel based on the username
-    channel_name = USERNAME.lower()
-    channel = discord.utils.get(guild.channels, name=channel_name)
+    channel = discord.utils.get(guild.channels, name=f"{USERNAME}")
 
     if not channel:
-        channel = await guild.create_text_channel(channel_name)
+        channel = await guild.create_text_channel(f"{USERNAME}")
         print(f"✅ Created channel: {channel.name}")
 
     await channel.send(f"{USERNAME} is online ✅")
+    await channel.send("""``` _____                                                               _____ 
+( ___ )                                                             ( ___ )
+ |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   | 
+ |   | _________    _____    _________ ____________________________  |   | 
+ |   | \_   ___ \  /  _  \  /   _____//   _____\______   \______   \ |   | 
+ |   | /    \  \/ /  /_\  \ \_____  \ \_____  \ |     ___/|       _/ |   | 
+ |   | \     \___/    |    \/        \/        \|    |    |    |   \ |   | 
+ |   |  \______  \____|__  /_______  /_______  /|____|    |____|_  / |   | 
+ |   |         \/        \/        \/        \/                  \/  |   | 
+ |   | ______________ ______________                                 |   | 
+ |   | \__    ___/   |   \_   _____/                                 |   | 
+ |   |   |    | /    ~    |    __)_                                  |   | 
+ |   |   |    | \    Y    |        \                                 |   | 
+ |   |   |____|  \___|_  /_______  /                                 |   | 
+ |   |                 \/        \/                                  |   | 
+ |   |   ________  ___ ___ ________    ___________________           |   | 
+ |   |  /  _____/ /   |   \\_____  \  /   _____\__    ___/           |   | 
+ |   | /   \  ___/    ~    \/   |   \ \_____  \  |    |              |   | 
+ |   | \    \_\  \    Y    /    |    \/        \ |    |              |   | 
+ |   |  \______  /\___|_  /\_______  /_______  / |____|              |   | 
+ |   |         \/       \/         \/        \/                      |   | 
+ |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___| 
+(_____)                                                             (_____)```""")
+    
+    await channel.send("```Use !what for info ✅```")
     print(f"✅ {USERNAME} sent a message.")
 
     # Start the main loop
@@ -280,3 +304,5 @@ if TOKEN:
     bot.run(TOKEN)
 else:
     print("❌ Bot token is missing! Set the DISCORD_BOT_TOKEN environment variable.")
+
+
