@@ -12,6 +12,7 @@ A brief description of what this project does and who it's for
 ## Authors
 
 - [@LeonBoussen](https://www.github.com/LeonBoussen)
+- [@Samujaxx](https://github.com/Samujaxx)
 
 
 ## Features
