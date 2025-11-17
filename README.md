@@ -1,7 +1,7 @@
 
-# Project Title
+# Cassper
 
-A brief description of what this project does and who it's for
+a spyware project made for our python class at the cybersecurity branch of the HVA
 
 
 ## Documentation
@@ -20,7 +20,7 @@ A brief description of what this project does and who it's for
 Automatic
 - Windows Defender bypass (indevelopment)
 - Copy self to startup folder & registry
-- 
+
 Executable commands
 - What (help for all commands)
 - PS (execute powershell commands)
